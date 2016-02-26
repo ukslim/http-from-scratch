@@ -7,16 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Http {
-
-    private static void sendResponse(int status, String message) {
-        System.out.println("HTTP/1.1 " + status + " OK\r\n" +
-                "Content-Length: "+ message.length() +"\r\n" +
-                "Content-Type: text/plain\r\n" +
-                "\r\n" +
-                message + "\r\n");
-    }
-
-    
+   
     public static void main(String[] args) throws IOException {
         
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -33,7 +24,6 @@ public class Http {
             default:
                 methodNotAllowed(request);
         }
-        
     }
     
     private static void methodNotAllowed(String request) {
@@ -41,20 +31,35 @@ public class Http {
     }
     
     private static void handleGet(String request) {
-        sendResponse(200, "Hello world!");
+        sendResponse(200, "<html>"
+                + "<head>"
+                + "<title>Web From Scratch</title>"
+                + "</head>"
+                + "<body>"
+                + "<p>Hello world</p>"
+                + "<form method=\"POST\">"
+                + "<input type=\"text\" name=\"text\"/>"
+                + "<input type=\"submit\"/>"
+                + "</form>"
+                + "</body>"
+                + "</html>");
     }
 
     private static void handlePostOrPut(String request, BufferedReader reader) throws IOException {
-
         Map<String,String> headers = consumeHeaders(reader);
         int contentLength = Integer.parseInt(headers.get("content-length"));
-        StringBuilder string = new StringBuilder();
-        for(int i=0; i<contentLength; i++) {
-            final char c = (char) reader.read();
-            string.append(c);
-            System.err.print(c);
-        }
-        sendResponse(200, "Your posted content: \n\n" + string.toString() + "\n\n - Tidy!\n");
+        String string = consumePostBody(contentLength, reader);
+        
+        sendResponse(200, "<html>"
+                + "<head>"
+                + "<title>Web From Scratch</title>"
+                + "</head>"
+                + "<body>"
+                + "<p>Your posted content: </p><pre>" + string + "</pre>\n"
+                + "<a href=\"/\">Back</a>"
+                + "</body>"
+                + "</html>" 
+        );
     }
     
     private static Map<String, String> consumeHeaders(BufferedReader reader) throws IOException {
@@ -68,5 +73,23 @@ public class Http {
             line = reader.readLine();
         }
         return headers;
+    }
+    
+    private static String consumePostBody(int contentLength, BufferedReader reader) throws IOException {
+        StringBuilder string = new StringBuilder();
+        char[] chars = new char[contentLength];
+        int offset = 0;
+        while(offset < contentLength) {
+            offset += reader.read(chars, offset, contentLength - offset);
+        }
+        return new String(chars);
+    }
+
+    private static void sendResponse(int status, String message) {
+        System.out.println("HTTP/1.1 " + status + " OK\r\n" +
+                "Content-Length: "+ message.length() +"\r\n" +
+                "Content-Type: text/html\r\n" +
+                "\r\n" +
+                message + "\r\n");
     }
 }
