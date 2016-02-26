@@ -2,35 +2,51 @@ package org.ukslim.webfromscratch.protocol;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Http {
+
+    private final PrintStream out;
+    private final InputStream inputStream;
    
     public static void main(String[] args) throws IOException {
+        Http http = new Http(System.out, System.in);
+        http.run();
+    }
+    
+    public Http(PrintStream out, InputStream inputStream) {
+        this.out = out;
+        this.inputStream = inputStream;
+    }
+    
+    public void run() throws IOException {
         
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         String request = reader.readLine();
         String command = request.replaceAll(" .*", "");
+        Map<String,String> headers = consumeHeaders(reader);
         switch(command) {
             case "GET":
                 handleGet(request);
                 break;
             case "POST":
             case "PUT":
-                handlePostOrPut(request,reader);
+                handlePostOrPut(request, headers, reader);
                 break;
             default:
                 methodNotAllowed(request);
         }
     }
     
-    private static void methodNotAllowed(String request) {
+    private void methodNotAllowed(String request) {
         sendResponse(405, "Method not supported");
     }
     
-    private static void handleGet(String request) {
+    private void handleGet(String request) {
         sendResponse(200, "<html>"
                 + "<head>"
                 + "<title>Web From Scratch</title>"
@@ -45,8 +61,7 @@ public class Http {
                 + "</html>");
     }
 
-    private static void handlePostOrPut(String request, BufferedReader reader) throws IOException {
-        Map<String,String> headers = consumeHeaders(reader);
+    private void handlePostOrPut(String request, Map<String,String> headers, BufferedReader reader) throws IOException {
         int contentLength = Integer.parseInt(headers.get("content-length"));
         String string = consumePostBody(contentLength, reader);
         
@@ -62,7 +77,7 @@ public class Http {
         );
     }
     
-    private static Map<String, String> consumeHeaders(BufferedReader reader) throws IOException {
+    private Map<String, String> consumeHeaders(BufferedReader reader) throws IOException {
         Map<String,String> headers = new HashMap<>();
         String line = reader.readLine();
         while(! line.isEmpty()) {
@@ -76,7 +91,6 @@ public class Http {
     }
     
     private static String consumePostBody(int contentLength, BufferedReader reader) throws IOException {
-        StringBuilder string = new StringBuilder();
         char[] chars = new char[contentLength];
         int offset = 0;
         while(offset < contentLength) {
@@ -85,11 +99,23 @@ public class Http {
         return new String(chars);
     }
 
-    private static void sendResponse(int status, String message) {
-        System.out.println("HTTP/1.1 " + status + " OK\r\n" +
+    private void sendResponse(int status, String message) {
+        out.println("HTTP/1.1 " + status + " " + statusString(status) + "\r\n" +
                 "Content-Length: "+ message.length() +"\r\n" +
                 "Content-Type: text/html\r\n" +
                 "\r\n" +
                 message + "\r\n");
     }
+    
+    private String statusString(int status) {
+        switch(status) {
+            case 200:
+                return "OK";
+            case 405:
+                return "Method not allowed";
+            default:
+                return "Unknown status";
+        }
+    }
+     
 }
